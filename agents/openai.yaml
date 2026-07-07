@@ -1,0 +1,4 @@
+interface:
+  display_name: "Security Paper Translate"
+  short_description: "Layout-faithful Chinese research PDF translation"
+  default_prompt: "Use $security-paper-translate to translate this paper PDF into layout-preserved Chinese-only and Chinese-first interleaved editions with a sourced terminology table."

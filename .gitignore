@@ -1,0 +1,20 @@
+# Python/cache artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Skill runtime/work artifacts
+.work/
+translated-pdfs/
+*.tmp.pdf
+*.tmp.json
+*.log
+
+# Large generated PDFs are outputs, not skill source
+*-zh.pdf
+*-zh-en-interleaved.pdf
+*-mono.pdf
+*-dual.pdf
