@@ -110,7 +110,7 @@ For difficult pages, copy `pdf_postprocess_template.py` into `.work/scripts/post
 - restore a code/listing/verbatim region from the source PDF when the intermediate changed indentation, line breaks, alignment, or monospace styling;
 - mask review line numbers or dotted artifacts;
 - redraw running headers/footers;
-- reinforce title, abstract heading, section/subsection headings, table/figure captions, algorithm/listing labels, table headers, paragraph lead labels, and `发现#` labels with controlled CJK bold;
+- reinforce title, abstract heading, section/subsection headings, table/figure captions, algorithm/listing labels, table headers, paragraph lead labels, and `发现#` labels with real font-level CJK bold/semi-bold. Do not use stroke text, offset fake bold, repeated overprint, or old/new label overlap;
 - restore citation/link colors conservatively.
 
 Keep the original figures, plots, and diagram internals unless the user explicitly asks to translate image text.
@@ -128,7 +128,7 @@ python scripts/paper_pdf_tools.py validate \
   --fail-on-issue
 ```
 
-Inspect rendered PNGs. Do not finalize if headings are plain body text, bold labels are black blobs, code/listing regions are reformatted, tables drift, figures disappear, or there is abnormal whitespace.
+Inspect rendered PNGs. Do not finalize if headings are plain body text, bold labels are black blobs or ghosted from overlapping copies, code/listing regions are reformatted, tables drift, figures disappear, or there is abnormal whitespace. Run the duplicate/overlap bold check from `font-bold-rendering.md` when bold labels were patched.
 
 Then finalize:
 

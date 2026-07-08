@@ -1,7 +1,7 @@
 # Security Paper Translate Skill
 
 <p align="center">
-  <a href="#security-paper-translate-skill"><img alt="English" src="https://img.shields.io/badge/Language-English-blue?style=for-the-badge"></a>
+  <a href="README.md"><img alt="Language selector" src="https://img.shields.io/badge/Language-Selector-lightgrey?style=for-the-badge"></a>
   <a href="README.zh-CN.md"><img alt="中文" src="https://img.shields.io/badge/语言-中文-red?style=for-the-badge"></a>
 </p>
 

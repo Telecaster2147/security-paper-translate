@@ -2,7 +2,7 @@
 """Reusable postprocess scaffold for pdf2zh-produced Chinese mono PDFs.
 
 It handles generic cleanup used by the successful workflow: margin line-number
-removal, optional ACM-style running header redraw, conservative CJK bold label
+removal, optional ACM-style running header redraw, real-font CJK bold label
 reinforcement, red citation restoration, terminology-page append, and Chinese-
 first interleaving. Per-paper table repairs should be added in a copied project
 specific script under translated-pdfs/<stem>/.work/scripts/ rather than in this
@@ -44,8 +44,29 @@ def white(page, rect):
 def choose_font(explicit=None):
     candidates = [explicit] if explicit else []
     candidates += [
-        "/home/olm/.cache/babeldoc/fonts/SourceHanSerifCN-Regular.ttf",
-        "/home/olm/summerintern/.cache/babeldoc/fonts/SourceHanSerifCN-Regular.ttf",
+        str(Path.home() / ".cache/babeldoc/fonts/SourceHanSerifCN-Regular.ttf"),
+    ]
+    for c in candidates:
+        if c and Path(c).exists():
+            return c
+    return None
+
+
+def choose_bold_font(explicit=None):
+    """Return a real bold/semi-bold CJK font when available.
+
+    Bold reinforcement must not use offset/overprint fake bold. If no true
+    bold/semi-bold CJK font is available, return None so the caller can avoid
+    fake-bold behavior and record the limitation.
+    """
+    candidates = [explicit] if explicit else []
+    candidates += [
+        "/usr/share/fonts/opentype/noto/NotoSerifCJK-SemiBold.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSerifCJK-Bold.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Medium.ttc",
+        str(Path.home() / ".cache/babeldoc/fonts/SourceHanSerifCN-Bold.ttf"),
+        str(Path.home() / ".cache/babeldoc/fonts/SourceHanSerifCN-SemiBold.ttf"),
     ]
     for c in candidates:
         if c and Path(c).exists():
@@ -90,19 +111,21 @@ def is_heading(text):
 
 
 def bold_overlay(page, box, text, fontfile, fs, erase=False, strong=False):
+    """Draw a bold label exactly once with a real bold font.
+
+    `strong` is retained for CLI compatibility but intentionally ignored:
+    never fake stronger weight via repeated offset draws.
+    """
     if erase:
         white(page, (box.x0 - .6, box.y0 - .5, box.x1 + 4.5, box.y1 + 1.4))
-    offsets = [(0, 0), (.22, 0)]
-    if strong:
-        offsets += [(0, .18), (.22, .18)]
     baseline = box.y1 - 2.0
-    for dx, dy in offsets:
-        kwargs = {"fontsize": fs, "color": (0, 0, 0), "overlay": True}
-        if fontfile:
-            kwargs.update({"fontname": "CJKBold", "fontfile": fontfile})
-        else:
-            kwargs.update({"fontname": "Times-Bold"})
-        page.insert_text((box.x0 + dx, baseline + dy), text, **kwargs)
+    kwargs = {"fontsize": fs, "color": (0, 0, 0), "overlay": True}
+    if fontfile:
+        kwargs.update({"fontname": "CJKBold", "fontfile": fontfile})
+    else:
+        kwargs.update({"fontname": "Times-Bold"})
+    # Single draw only: no stroke render mode, no shadow, no offset duplicate.
+    page.insert_text((box.x0, baseline), text, **kwargs)
 
 
 def reinforce_labels(page, labels, fontfile):
@@ -143,6 +166,7 @@ def main():
     ap.add_argument("--output-interleaved", required=True)
     ap.add_argument("--terms", help="terms TSV to append")
     ap.add_argument("--font", help="CJK font path")
+    ap.add_argument("--bold-font", help="real CJK bold/semi-bold font path for headings/labels")
     ap.add_argument("--content-pages", type=int, help="source content page count; defaults to source page count")
     ap.add_argument("--remove-line-numbers", action="store_true")
     ap.add_argument("--header-policy", choices=["none", "acm"], default="none")
@@ -154,6 +178,9 @@ def main():
     args = ap.parse_args()
 
     font = choose_font(args.font)
+    bold_font = choose_bold_font(args.bold_font)
+    if not bold_font:
+        print("WARNING: no real CJK bold/semi-bold font found; skipping bold reinforcement rather than using overlap fake-bold.", file=sys.stderr)
     src = fitz.open(args.source)
     doc = fitz.open(args.mono)
     content_pages = args.content_pages or len(src)
@@ -166,7 +193,8 @@ def main():
             draw_acm_header(page, i, args.running_title or Path(args.source).stem, args.conference, args.author)
         if args.color_citations:
             color_citations(page, font)
-        reinforce_labels(page, labels, font)
+        if bold_font:
+            reinforce_labels(page, labels, bold_font)
 
     if args.terms:
         if paper_pdf_tools is None:

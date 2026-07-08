@@ -16,8 +16,7 @@ import subprocess
 from pathlib import Path
 
 FONT_PATTERNS = [
-    "/home/olm/.cache/babeldoc/fonts/SourceHanSerifCN-Regular.ttf",
-    "/home/olm/summerintern/.cache/babeldoc/fonts/SourceHanSerifCN-Regular.ttf",
+    str(Path.home() / ".cache/babeldoc/fonts/SourceHanSerifCN-Regular.ttf"),
     "/usr/share/fonts/**/*SourceHan*CN*.ttf",
     "/usr/share/fonts/**/*Noto*Serif*CJK*.ttc",
     "/usr/share/fonts/**/*Noto*Sans*CJK*.ttc",

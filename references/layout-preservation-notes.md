@@ -13,7 +13,7 @@ Use these notes when implementing the per-paper Chinese page builder.
 4. Redraw translated Chinese text in the original text regions. For double-column papers, preserve column boundaries and original block ordering.
 5. Use a CJK font such as Source Han Serif CN by default, and report the chosen font to the user.
 6. Preserve original style by mapping source styled spans to translated spans:
-   - bold/medium flags or font names -> simulated CJK weight if a true bold font is unavailable;
+   - bold/medium flags or font names -> real CJK bold/semi-bold font selection; never use overlapped copies, stroke text, or offset shadows to fake weight;
    - italic flags/font names -> italic for Latin terms or mild emphasis for CJK;
    - non-black citation/link colors -> character-level recoloring of matching citations/cross-references/identifiers;
    - table/figure colors -> keep the original objects.
@@ -40,9 +40,10 @@ Treat this TSV as a required implementation contract. Do not finalize while any 
 ## Headings, captions, and bold labels
 
 - Draw headings and bold labels as independent styled runs, not as the first words inside a plain body paragraph.
-- Keep original title hierarchy: title > section > subsection > paragraph lead. Use size and simulated weight to make these levels visibly distinct.
+- Keep original title hierarchy: title > section > subsection > paragraph lead. Use size plus real font weight (Bold/SemiBold/Medium faces) to make these levels visibly distinct.
 - Treat missing heading/bold hierarchy as a hard validation failure. If the title, abstract heading, section/subsection heading, table/figure caption, algorithm/listing label, paragraph lead, or `Finding#`/`发现#` label appears as normal body text, patch it before finalizing.
-- Use a real bold CJK font when available. If only a regular CJK font is available, simulate bold with one or two tiny offsets only; too many overprints make labels unreadable.
+- Use a real bold/semi-bold CJK font. Do not simulate bold with tiny offsets, repeated drawing, stroke/outline rendering, or duplicate overlays. If only a regular CJK font is available, report the limitation and use the closest real weight; do not fake weight by overlap.
+- When replacing an existing heading/label, first remove the old label region, then draw the replacement once. Old text plus new bold text in the same pixels is a failed output.
 - For inline bold leads such as `研究空白。`, `本文工作。`, `发现#1。`, or `数据层：`, mask only the lead phrase and redraw it, or draw it in a separate region before the rest of the line. Do not bold the whole paragraph unless the source did.
 - Never mask first and hope insertion succeeds. First measure or test-fit the styled text. Then mask the exact phrase region and redraw. If fitting fails, undo/regenerate the page rather than leaving a blank label.
 
@@ -69,7 +70,7 @@ Treat this TSV as a required implementation contract. Do not finalize while any 
 - Do not colorize an entire Chinese span just because a tiny English citation was colored. Chinese extraction often groups a whole line into one span.
 - Do not over-bold whole paragraphs. If exact coordinate matching fails, semantically bold only labels, contribution leads, subsection names, table headers, or corresponding emphasized phrases.
 - Do not lose visible heading hierarchy by putting `3 方法`, `3.1 研究概览`, table captions, or `发现#` labels into normal-weight prose.
-- Do not fix missing bold by repeatedly overdrawing text until it becomes a black blob. Use controlled simulated bold or a real bold font.
+- Do not fix missing bold by repeatedly overdrawing text, offsetting copies, stroking text, or leaving overlapped old/new labels. Use a real bold/semi-bold font and a single draw per label.
 - Do not erase a heading/caption/label before confirming its replacement will render in the target box.
 - Do not accept a PDF just because text extraction and page-count validation pass; visual style validation is mandatory.
 - Do not stretch line spacing to absorb long translations. Prefer concise Chinese, then slight font reduction.
@@ -97,3 +98,5 @@ Always render and inspect:
 - a page with colored citations/cross references;
 - a page with bold contribution labels or subsection labels;
 - final terminology page.
+
+For pages where bold labels were patched, also run the overlap/stroke validation in `font-bold-rendering.md`: duplicate/near-overlapping same-text bold span count must be zero, and patched content must not use text-rendering-mode stroke/outline markers.

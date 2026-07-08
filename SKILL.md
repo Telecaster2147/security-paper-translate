@@ -19,6 +19,7 @@ description: Translate cybersecurity and related academic research paper PDFs in
 - The Chinese content page count must match the source PDF page count. Terminology pages are appended after content pages and are exempt from this count.
 - Translate title, abstract, section headings, body, figure captions, table captions, table text, footnotes, acknowledgments, and other main content. Do **not** translate appendices or references unless the user explicitly asks.
 - Preserve style hierarchy visibly, not merely textually: title fonts, section/subsection headings, table/figure captions, table headers, contribution labels, `Finding#`/`发现#` labels, bold leads, italic leads, colored citations, and colored hyperlinks must remain visually distinguishable in the Chinese PDF. **Missing bold/title hierarchy is a failed output, not a cosmetic issue.**
+- Bold hierarchy must be produced by font selection, not by graphic tricks. For Chinese bold/semi-bold text, use a real bold/semi-bold CJK font and draw each label exactly once. Do **not** use stroke/outline text, offset shadows, repeated overprint, duplicate overlays, or “fake bold” made from overlapping copies. If the current PDF already contains overlapped bold text, redact the overlapped cluster first, then redraw one clean real-font run.
 - If a local VSCode “PDF Translate” / `pdf2zh` / PDFMathTranslate-style output exists for the same paper, inspect it as a **layout-preservation reference only**. You may reuse its local layout reconstruction method (region detection, text replacement, mono/dual assembly), but you must still supply Codex-written translations and must not call its machine translation service.
 - Do not translate code, commands, paths, API names, YAML/JSON keys, action/repository names, identifiers, product names, or source-text spans rendered in code/monospace/special identifier fonts when they function as identifiers. Do not treat every occurrence of a word as frozen merely because the same string appears elsewhere as an identifier; classify by context and ask the user before full translation.
 - Preserve code/listing/verbatim regions exactly. For code blocks, algorithms-as-code, YAML/JSON/shell snippets, inline command examples, stack traces, schema listings, and monospace tables, do **not** translate, rewrap, reindent, normalize punctuation, change line breaks, change alignment, or replace the original monospace/code styling. Translate only the surrounding prose and listing captions unless the user explicitly asks otherwise.
@@ -67,6 +68,7 @@ description: Translate cybersecurity and related academic research paper PDFs in
 5. **Rebuild Chinese pages with layout preservation**
    - Read `references/layout-preservation-notes.md` before implementing the per-paper page builder.
    - If using local `pdf2zh`/PDFMathTranslate or a VSCode PDF Translate extension as the layout engine, read `references/pdf2zh-layout-integration.md` and use the bundled scripts rather than rewriting the monkeypatch workflow from scratch.
+   - Before reinforcing headings/captions/bold labels, read `references/font-bold-rendering.md`. Treat its no-overlap bold rules as mandatory.
    - Prefer the successful page-object strategy:
      - Extract text blocks/spans with coordinates, font size, bold/italic/color information.
      - Keep non-text objects, figures, tables, vector graphics, and backgrounds from the original page.
@@ -83,7 +85,7 @@ description: Translate cybersecurity and related academic research paper PDFs in
      7. Build the Chinese-first interleaved PDF from the final Chinese content pages and the original source pages, then append terminology pages.
    - If Chinese is too long for a region, first make the translation more concise; if still needed, slightly reduce font size to keep the original layout unchanged.
    - Map style from source to Chinese:
-     - source bold -> corresponding Chinese bold or simulated weight;
+     - source bold -> corresponding Chinese bold/semi-bold font; never use overlapping copies, stroke text, or offset shadows as a substitute for bold;
      - source italic -> corresponding Chinese italic/weak emphasis where readable;
      - colored citations/cross-references/links -> matching Chinese citation/link color;
      - figure/table colors -> preserved from original objects.
@@ -92,8 +94,9 @@ description: Translate cybersecurity and related academic research paper PDFs in
    - Enforce heading/emphasis hierarchy after every generation pass. The final PDF must visibly preserve: paper title, abstract title, section titles, subsection titles, paragraph lead labels, table/figure captions, table headers, theorem/definition/algorithm/listing labels, contribution labels, and boxed findings. If any of these look like normal body text, stop and patch them.
    - For ACM/IEEE/USENIX-style compact two-column papers, preserve visual density: no unexpected half-page blank areas, no table/caption drift, no line-number remnants, no headers/footers colliding with translated text, and no “loose” reflow that differs from the source page.
    - Treat title/section/subsection styling as a hard requirement. After generation, render sample pages and verify that `摘要`, numbered section headings, numbered subsection headings, table captions, figure captions, and `发现#/Finding#` boxes are visibly bold or otherwise match the original emphasis. If they render as ordinary body text, regenerate or overlay them before finalizing.
-   - For simulated CJK bold, use a real bold CJK font if available; otherwise redraw the exact label with only a small 1–2 pass offset. Never overprint a label repeatedly until it becomes a black blob.
+   - For CJK bold, use a real bold/semi-bold CJK font such as Noto/Source Han CJK Bold/SemiBold. Do not simulate bold with offsets, repeated drawing, stroke/outline rendering, or overlapping copies. If no true bold CJK font is available, report the limitation and use the closest real font weight; do not fake it with overlap.
    - When bold-overlaying CJK labels, first test whether the text box accepts the glyphs. If using `insert_textbox` could silently fail due to a tight box, use baseline/point text or expand the box. Never mask an existing heading/label unless the replacement has been confirmed to draw.
+   - When replacing a label that already exists, remove the old label region first, then draw the replacement exactly once. Never leave old and new label text occupying the same pixels.
    - If masking old text before redrawing style, use a two-step check: (1) compute/confirm the new styled run fits the region; (2) mask and draw. Never erase a heading/label first and then attempt a draw that may fail.
    - If exact style alignment is impossible, use semantic matching for emphasis, but avoid over-boldening whole paragraphs.
 
@@ -114,6 +117,7 @@ description: Translate cybersecurity and related academic research paper PDFs in
      - figures/tables are still present and aligned;
      - sample bold and colored citation/link styles are visible on style-heavy pages;
      - section/subsection headings, table titles, figure captions, and boxed findings retain their title/bold style and are not plain body text;
+     - bold labels are not duplicated, offset, shadowed, stroked, outlined, or visually ghosted; a programmatic check should report zero near-overlapping same-text bold spans and zero text-rendering-mode stroke markers for the patched pages;
      - code/listing/verbatim regions preserve original text, indentation, line breaks, monospace/code styling, and region geometry; no code has been translated, reflowed, or converted into proportional body prose;
      - every item in `.work/style-map.tsv` is visibly present in the rendered samples; section/subsection headings and captions must not disappear, become ordinary body text, or turn into overbold black blobs;
      - table/figure positions must match the source page anchors; a translated table/caption must not drift into another column, overlap the header/footer, or leave a large blank area that the source page did not have;
@@ -147,6 +151,7 @@ Read `references/pdf2zh-layout-integration.md` when using a local VSCode PDF Tra
 - `scripts/paper_pdf_tools.py finalize`: write final generation stats and remove `.work/` unless debug artifacts are requested.
 - `scripts/pdf2zh_capture_chunks.py`: run local `pdf2zh` with its translator monkeypatched to capture source chunks without machine translation.
 - `scripts/pdf2zh_codex_driver.py`: run local `pdf2zh` with a Codex-written local translation mapping; the layout engine is used, but external MT/LLM services are not contacted.
-- `scripts/pdf_postprocess_template.py`: reusable postprocess scaffold for pdf2zh-produced mono PDFs: remove line numbers, redraw headers, reinforce CJK bold labels, color citations, append terminology, and build Chinese-first interleaved PDFs.
+- `scripts/pdf_postprocess_template.py`: reusable postprocess scaffold for pdf2zh-produced mono PDFs: remove line numbers, redraw headers, reinforce CJK bold labels with real font-level bold only, color citations, append terminology, and build Chinese-first interleaved PDFs.
+- `scripts/check_pdf_bold_integrity.py`: verify that bold-like spans are not duplicated/near-overlapped and that patched pages do not contain stroke/outline text rendering markers.
 
 These scripts do not translate. They support deterministic PDF assembly and validation while Codex performs the actual translation.
